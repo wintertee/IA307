@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include "cuda_stuff.cuh"
 
-static int N = 5;
-#define NB_STEPS 2
+static int N = 100;
+#define NB_STEPS 50
 
 double *cur_step;
 double *next_step;
@@ -72,12 +72,12 @@ __global__ void compute(double *cur_step_d, double *next_step_d, int N)
 int main(int argc, char **argv)
 {
 
-    const char *output_file = "result.dat";
+    const char *output_file = "resultgpu.dat";
     int dump = 1;
 
-    int block_dim = 100;
+    int block_dim = 32;
     dim3 block(block_dim, block_dim);
-    dim3 grid(ceil(N / float(block_dim)));
+    dim3 grid(ceil(N / float(block_dim)), ceil(N / float(block_dim)));
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -111,7 +111,7 @@ int main(int argc, char **argv)
     cudaEventSynchronize(stop);
     float total_time;
     cudaEventElapsedTime(&total_time, start, stop);
-    printf("%d steps in %lf sec (%lf sec/step)\n", NB_STEPS, total_time, total_time / NB_STEPS);
+    printf("%d steps in %lf sec (%lf sec/step)\n", NB_STEPS, total_time / 1000, total_time / 1000 / NB_STEPS);
 
     if (dump)
     {
