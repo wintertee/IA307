@@ -18,8 +18,6 @@
 
 using namespace std;
 
-static cublasHandle_t handle;
-static int cublas_init = 0;
 
 /* basic matrix multiplication C = alpha*A*B + beta*C on host as reference for the speedup */
 void matrixMultiplication_basic_host(float alpha, fmatrix A, fmatrix B, float beta, fmatrix C)
@@ -121,20 +119,14 @@ void matrixMultiplication_tiled(float alpha, fmatrix d_A, fmatrix d_B, float bet
 }
 
 /**********************/
-void matrixMultiplication_cublas(float alpha, fmatrix d_A, fmatrix d_B, float beta, fmatrix d_C)
+void matrixMultiplication_cublas(cublasHandle_t handle, float alpha, fmatrix d_A, fmatrix d_B, float beta, fmatrix d_C)
 {
     /* TODO */
-    cublas_init = cublasCreate(&handle);
-    if (cublas_init != CUBLAS_STATUS_SUCCESS)
-    {
-        return;
-    }
     cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, d_A.rows, d_B.cols, d_A.cols, &alpha, d_A.data, d_A.rows, d_B.data, d_B.rows, &beta, d_C.data, d_C.rows);
-    cublasDestroy(handle);
 }
 
 /*MAIN SGEMM*/
-void gen_mat_mul(float alpha, fmatrix A, fmatrix B, float beta, fmatrix C, std::string arg)
+void gen_mat_mul(cublasHandle_t handle, float alpha, fmatrix A, fmatrix B, float beta, fmatrix C, std::string arg)
 {
     if (arg == "cpu")
     {
@@ -153,7 +145,7 @@ void gen_mat_mul(float alpha, fmatrix A, fmatrix B, float beta, fmatrix C, std::
         }
         else if (arg == "gpu_cublas")
         {
-            matrixMultiplication_cublas(alpha, A, B, beta, C);
+            matrixMultiplication_cublas(handle, alpha, A, B, beta, C);
         }
         else
         {
@@ -165,7 +157,7 @@ void gen_mat_mul(float alpha, fmatrix A, fmatrix B, float beta, fmatrix C, std::
     }
 }
 
-void mat_mul(fmatrix A, fmatrix B, fmatrix C, std::string arg)
+void mat_mul(cublasHandle_t handle, fmatrix A, fmatrix B, fmatrix C, std::string arg)
 {
-    gen_mat_mul(1.0, A, B, 0.0, C, arg);
+    gen_mat_mul(handle, 1.0, A, B, 0.0, C, arg);
 }

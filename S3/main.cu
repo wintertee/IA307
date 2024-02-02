@@ -3,11 +3,22 @@
 #include "fmatrix.cuh"
 #include "sgemm.cuh"
 
+#include "cublas_v2.h"
+
 #define TILE_WIDTH 32
 #define SIZE 40
 
+static cublasHandle_t handle;
+static int cublas_init = 0;
+
 int main(void)
 {
+    cublas_init = cublasCreate(&handle);
+    if (cublas_init != CUBLAS_STATUS_SUCCESS)
+    {
+        return EXIT_FAILURE;
+    }
+
     /* Allocate and initialize data on host */
     fmatrix A = fmatrix_create_on_host(TILE_WIDTH * SIZE, TILE_WIDTH * SIZE);
     fmatrix_init(A, 1.0);
@@ -32,7 +43,7 @@ int main(void)
     /* Start calculation "cpu", "gpu_basic", "gpu_tiled", "gpu_cublas" */
     /************** "cpu" *******************/
     start = clock();
-    mat_mul(A, B, C, "cpu");
+    mat_mul(handle, A, B, C, "cpu");
     end = clock();
     cpu_time_used = ((double)(end - start)) * 1000 / CLOCKS_PER_SEC;
     printf("Time taken by CPU in milliseconds: %.2f\n", cpu_time_used);
@@ -53,7 +64,7 @@ int main(void)
 
     /************** "gpu_basic" *******************/
     start = clock();
-    mat_mul(d_A, d_B, d_C, "gpu_basic");
+    mat_mul(handle, d_A, d_B, d_C, "gpu_basic");
     end = clock();
     cpu_time_used = ((double)(end - start)) * 1000 / CLOCKS_PER_SEC;
     printf("GPU basic matrix multiplication in milliseconcs : %.2f\n", cpu_time_used);
@@ -77,7 +88,7 @@ int main(void)
 
     /************** "gpu_tiled" *******************/
     start = clock();
-    mat_mul(d_A, d_B, d_C, "gpu_tiled");
+    mat_mul(handle, d_A, d_B, d_C, "gpu_tiled");
     end = clock();
     cpu_time_used = ((double)(end - start)) * 1000 / CLOCKS_PER_SEC;
     printf("GPU tiled matrix multiplication in milliseconcs : %.2f\n", cpu_time_used);
@@ -102,13 +113,13 @@ int main(void)
     /************** "gpu_cublas" *******************/
     for (int warmup = 0; warmup < 5; warmup++)
     {
-        mat_mul(d_A, d_B, d_C, "gpu_cublas");
+        mat_mul(handle, d_A, d_B, d_C, "gpu_cublas");
     }
     fmatrix_init(C, 0.0);
     fmatrix_data_to_device(C, d_C);
 
     start = clock();
-    mat_mul(d_A, d_B, d_C, "gpu_cublas");
+    mat_mul(handle, d_A, d_B, d_C, "gpu_cublas");
     end = clock();
     cpu_time_used = ((double)(end - start)) * 1000 / CLOCKS_PER_SEC;
     printf("GPU cuBLAS matrix multiplication in milliseconcs : %.2f\n", cpu_time_used);
@@ -137,4 +148,6 @@ int main(void)
     fmatrix_free_on_device(&d_A);
     fmatrix_free_on_device(&d_B);
     fmatrix_free_on_device(&d_C);
+
+    cublasDestroy(handle);
 }
